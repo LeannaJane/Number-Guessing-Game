@@ -82,7 +82,6 @@ async function GuessNumber(rl, randomNum, maxAttempts, name) {
     let guessedNumbers = [];
 
     const startTime = Date.now();
-    console.log(randomNum);
     while (chances < maxAttempts) {
        
         const answer = await rl.question("Number Choice: ");
