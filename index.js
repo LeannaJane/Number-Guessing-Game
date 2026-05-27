@@ -6,14 +6,7 @@ const rl = readline.createInterface({
     output: process.stdout
 });
 
-async function WelcomeText() {
-    console.log("============================================");
-    console.log("Welcome to the number guessing game!");
-    console.log("============================================");
-
-    const name = await rl.question("What is your name? ")
-    console.log(`Hello, ${name}!`);
-
+async function WelcomeText(name) {
     const answer = await rl.question("Do you want to play the number guessing game? yes/no ")
     let answerUpper = answer.toUpperCase()
 
@@ -126,9 +119,13 @@ async function GuessNumber(rl, randomNum, maxAttempts) {
 
 async function main() {
     let keepPlaying = true;
+    console.log("============================================");
+    console.log("Welcome to the number guessing game!");
+    console.log("============================================");
 
+    const name = await rl.question("What is your name? ");
     while (keepPlaying) {
-        const maxAttempts = await WelcomeText();
+        const maxAttempts = await WelcomeText(name);
 
         if (!maxAttempts) {
             break;
