@@ -75,9 +75,8 @@ function GetRandomNumber() {
 async function GuessNumber(rl, randomNum, maxAttempts) {
     let chances = 0;
     let guessedNumbers = [];
-
     while (chances < maxAttempts) {
-
+       
         const answer = await rl.question("Number Choice: ");
         const parsedAnswer = parseInt(answer, 10);
 
@@ -98,9 +97,12 @@ async function GuessNumber(rl, randomNum, maxAttempts) {
 
         guessedNumbers.push(parsedAnswer);
         chances++;
-
+        
         if (parsedAnswer == randomNum) {
-            console.log(`Yay, you guessed the Number ${parsedAnswer}`);
+            const totalAttempts = guessedNumbers.length; 
+            const attemptWord = totalAttempts === 1 ? "attempt" : "attempts";
+            
+            console.log(`Yay, you guessed the Number ${parsedAnswer} in ${totalAttempts} ${attemptWord}!`);
             return true;
         }
         else {
