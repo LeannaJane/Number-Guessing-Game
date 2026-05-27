@@ -38,3 +38,10 @@ How to Run:
 ```bash
 node index.js
 ```
+
+
+Game usage Screenshots:
+<img width="916" height="632" alt="image" src="https://github.com/user-attachments/assets/10d48a04-a254-4420-9095-c5fa61202d5b" />
+
+<img width="916" height="632" alt="image" src="https://github.com/user-attachments/assets/86b0a8b4-a2db-4ef5-8bcc-6ecc82590de7" />
+
