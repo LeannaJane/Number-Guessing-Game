@@ -1,10 +1,18 @@
 import readline from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
+import sqlite3 from 'sqlite3';
+import { open } from 'sqlite';
 
 const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout
 });
+
+const db = await open({
+    filename: './game_history.db',
+    driver: sqlite3.Database
+});
+
 
 async function WelcomeText(name) {
     const answer = await rl.question("Do you want to play the number guessing game? yes/no ")
@@ -12,6 +20,7 @@ async function WelcomeText(name) {
 
     if (answerUpper === "YES" || answerUpper === "Y") {
         let maxAttempts = 20;
+        let modeName = "Medium";
 
         while (true) {
             console.log("\nWhat level do you want to play?");
@@ -29,16 +38,19 @@ async function WelcomeText(name) {
                 case 1:
                     console.log("\nWelcome to Easy mode!");
                     maxAttempts = 50;
+                    modeName = "Easy";
                     isValid = true;
                     break;
                 case 2:
                     console.log("\nWelcome to Medium mode!");
                     maxAttempts = 20;
+                    modeName = "Medium";
                     isValid = true;
                     break;
                 case 3: 
                     console.log("\nWelcome to Hard mode!");
                     maxAttempts = 5;
+                    modeName = "Hard";
                     isValid = true;
                     break;
                 case 4:
@@ -53,7 +65,7 @@ async function WelcomeText(name) {
                 break; 
             } 
         } 
-        return maxAttempts;
+        return { maxAttempts, modeName };
     }
     else {
         return false; 
@@ -65,7 +77,7 @@ function GetRandomNumber() {
     return randomNum;
 }
 
-async function GuessNumber(rl, randomNum, maxAttempts) {
+async function GuessNumber(rl, randomNum, maxAttempts, name) {
     let chances = 0;
     let guessedNumbers = [];
 
@@ -103,7 +115,8 @@ async function GuessNumber(rl, randomNum, maxAttempts) {
             
             console.log(`Yay, you guessed the Number ${parsedAnswer} in ${totalAttempts} ${attemptWord}!`);
             console.log(`It took you exactly ${totalTimeSeconds} seconds.`);
-            return true;
+            
+            return { playerName: name, outcome: "WON", attempts: totalAttempts, time: totalTimeSeconds };
         }
         else {
             console.log("Incorrect - Try again!")
@@ -114,33 +127,98 @@ async function GuessNumber(rl, randomNum, maxAttempts) {
 
     console.log(`\nOops, you lost! The number was: ${randomNum}`);
     console.log(`You spent ${totalTimeSeconds} seconds guessing.`);
-    return false;
+    return { playerName: name, outcome: "LOST", attempts: guessedNumbers.length, time: totalTimeSeconds };
 }
 
+
+async function ShowStats() {
+    console.log("\n===============================================================");
+    console.log("            PLAYER SCOREBOARD          ");
+    console.log("=================================================================");
+
+    try {
+        const rows = await db.all(`SELECT player_name, difficulty, outcome, attempts, time_seconds, played_at FROM game_logs ORDER BY id DESC`);
+
+        if (rows.length === 0) {
+            console.log("No match logs found yet! Go play a game to set some records.");
+            return;
+        }
+
+        console.log(String("NAME").padEnd(12) + " | " + String("MODE").padEnd(8) + " | " + String("RESULT").padEnd(7) + " | " + String("GUESSES").padEnd(7) + " | " + "TIME");
+        console.log("-------------------------------------------------------------");
+        
+        rows.forEach(row => {
+            console.log(
+                String(row.player_name).padEnd(12) + " | " + 
+                String(row.difficulty).padEnd(8) + " | " + 
+                String(row.outcome).padEnd(7) + " | " + 
+                String(row.attempts).padEnd(7) + " | " + 
+                `${row.time_seconds}s`
+            );
+        });
+    } catch (err) {
+        console.log("Could not read statistics from database:", err.message);
+    }
+    console.log("=============================================\n");
+}
+
+
 async function main() {
-    let keepPlaying = true;
+
+    await db.run(`
+        CREATE TABLE IF NOT EXISTS game_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            player_name TEXT,
+            difficulty TEXT,
+            outcome TEXT,
+            attempts INTEGER,
+            time_seconds REAL,
+            played_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    let keepRunningApp = true;
     console.log("============================================");
     console.log("Welcome to the number guessing game!");
     console.log("============================================");
 
     const name = await rl.question("What is your name? ");
-    while (keepPlaying) {
-        const maxAttempts = await WelcomeText(name);
+    while (keepRunningApp) {
+        console.log(`\n--- MAIN MENU ---`);
+        console.log("1. Play Game");
+        console.log("2. View Scoreboard Stats");
+        console.log("3. Exit");
+        
+        const menuChoice = await rl.question("\nSelect an option (1-3): ");
 
-        if (!maxAttempts) {
-            break;
-        }
-        const randomNum = GetRandomNumber();
-        await GuessNumber(rl, randomNum, maxAttempts); 
+        if (menuChoice === "1") {
+            const gameConfig = await WelcomeText(name);
 
-        const playAgain = await rl.question("\nDo you want to play again? ");
+            if (gameConfig) {
+                const randomNum = GetRandomNumber();
+                const stats = await GuessNumber(rl, randomNum, gameConfig.maxAttempts, name); 
 
-        if (playAgain.toUpperCase() !== "YES" && playAgain.toUpperCase() !== "Y") {
-            keepPlaying = false; 
+                await db.run(
+                    `INSERT INTO game_logs (player_name, difficulty, outcome, attempts, time_seconds) VALUES (?, ?, ?, ?, ?)`,
+                    [stats.playerName, gameConfig.modeName, stats.outcome, stats.attempts, stats.time]
+                );
+                console.log("Match stats successfully saved to SQL database.");
+            }
+        } 
+        else if (menuChoice === "2") {
+            await ShowStats();
+        } 
+        else if (menuChoice === "3") {
+            keepRunningApp = false;
+        } 
+        else {
+            console.log("Invalid choice! Please enter 1, 2, or 3.");
         }
     }
-    console.log("Thanks for playing!");
+
+    console.log("\nThanks for playing!");
     rl.close(); 
+    await db.close(); 
 }
 
 main();
